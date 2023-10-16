@@ -2,14 +2,21 @@
 
 namespace App\Entity;
 
-use App\Repository\UserRepository;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use App\Repository\UserRepository;
+use ApiPlatform\MetaData\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
+#[ApiResource]
+#[Get(normalizationContext:['groups' => ['user:read']])]
+#[GetCollection(normalizationContext:['groups' => ['user:read']])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -18,10 +25,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true)]
+    #[Groups(['formation:list', 'user:read'])]
     private ?string $username = null;
 
     #[ORM\Column]
     private array $roles = [];
+
+    #[ORM\Column(length: 180, unique: true)]
+    private ?string $email = null;
 
     #[ORM\Column]
     private ?string $password = null;
@@ -29,9 +40,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Article::class)]
     private Collection $articles;
 
+    #[ORM\OneToMany(mappedBy: 'userFrom', targetEntity: UserFrom::class)]
+    private Collection $userFroms;
+
+    #[ORM\OneToMany(mappedBy: 'userMessage', targetEntity: UserMessage::class, orphanRemoval: true)]
+    private Collection $userMessages;
+
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: FormationsUser::class, orphanRemoval: true)]
+    private Collection $formationsUsers;
+
     public function __construct()
     {
         $this->articles = new ArrayCollection();
+        $this->userFroms = new ArrayCollection();
+        $this->userMessages = new ArrayCollection();
+        $this->formationsUsers = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -128,6 +151,96 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($article->getUser() === $this) {
                 $article->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, UserMessage>
+     */
+    public function getUserMessages(): Collection
+    {
+        return $this->userMessages;
+    }
+
+    public function addUserMessage(UserMessage $userMessage): static
+    {
+        if (!$this->userMessages->contains($userMessage)) {
+            $this->userMessages->add($userMessage);
+            $userMessage->setUserMessage($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserMessage(UserMessage $userMessage): static
+    {
+        if ($this->userMessages->removeElement($userMessage)) {
+            // set the owning side to null (unless already changed)
+            if ($userMessage->getUserMessage() === $this) {
+                $userMessage->setUserMessage(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, FormationsUser>
+     */
+    public function getFormationsUsers(): Collection
+    {
+        return $this->formationsUsers;
+    }
+
+    public function addFormationsUser(FormationsUser $formationsUser): static
+    {
+        if (!$this->formationsUsers->contains($formationsUser)) {
+            $this->formationsUsers->add($formationsUser);
+            $formationsUser->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFormationsUser(FormationsUser $formationsUser): static
+    {
+        if ($this->formationsUsers->removeElement($formationsUser)) {
+            // set the owning side to null (unless already changed)
+            if ($formationsUser->getUser() === $this) {
+                $formationsUser->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, UserFrom>
+     */
+    public function getUserFroms(): Collection
+    {
+        return $this->userFroms;
+    }
+
+    public function addUserFrom(UserFrom $userFrom): static
+    {
+        if (!$this->userFroms->contains($userFrom)) {
+            $this->userFroms->add($userFrom);
+            $userFrom->setUserFrom($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserFrom(UserFrom $userFrom): static
+    {
+        if ($this->userFroms->removeElement($userFrom)) {
+            // set the owning side to null (unless already changed)
+            if ($userFrom->getUserFrom() === $this) {
+                $userFrom->setUserFrom(null);
             }
         }
 

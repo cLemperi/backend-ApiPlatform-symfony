@@ -2,13 +2,29 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Repository\ArticleRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\String\Slugger\SluggerInterface;
 
 #[ORM\Entity(repositoryClass: ArticleRepository::class)]
+#[ORM\HasLifecycleCallbacks] 
 #[UniqueEntity('slug')]
+#[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Patch(),
+        new Post(denormalizationContext: ['groups' => ['article:write']]),
+    ]
+)]
 class Article
 {
     #[ORM\Id]
@@ -17,15 +33,18 @@ class Article
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['article:write'])]  
     private ?string $title = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['article:write'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 255, unique: true)]
     private ?string $slug = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['article:write'])]
     private ?string $body = null;
 
     #[ORM\ManyToOne(inversedBy: 'articles')]
@@ -39,7 +58,21 @@ class Article
     private ?\DateTimeImmutable $editedAt = null;
 
     #[ORM\Column]
+    #[Groups(['article:write'])]
     private ?\DateTimeImmutable $publishedAt = null;
+
+    //persist la date
+    #[ORM\PrePersist]
+    public function setCreatedAtValue(): void
+    {
+        $this->createdAt = new \DateTimeImmutable();
+    }
+    
+    
+    public function computeSlug(SluggerInterface $slugger) 
+    {
+        $this->slug = $slugger->slug($this)->lower();
+    }
 
     public function getId(): ?int
     {
